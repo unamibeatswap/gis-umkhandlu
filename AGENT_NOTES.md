@@ -1,7 +1,8 @@
 # Agent Notes — GIS Umkhandlu Integration
+# Last updated: 2026-11-18 — ALL PHASES COMPLETE
 
 ## Push Method (Codespace)
-Codespace system credential helper (`/.codespaces/bin/gitcredential_github.sh`) overrides embedded-URL tokens.
+Codespace system credential helper overrides embedded-URL tokens.
 Working push command:
 ```
 GIT_CONFIG_NOSYSTEM=1 git -c credential.helper="" \
@@ -20,29 +21,30 @@ GIT_CONFIG_NOSYSTEM=1 git -c credential.helper="" \
 
 ### GitHub
 - PAT owner: prooftv
-- Token: stored in repo remote URLs — retrieve from GitHub Settings > Developer Settings > PAT
+- Token: stored in codespace remote URLs only (not stored here — push protection)
 
 ### Supabase — Umkhandlu Control Centre
 - Project ref: ufsmpqxniswdnsywjzje
+- Region: eu-west-1
+- Status: ACTIVE_HEALTHY
 - Dashboard: https://supabase.com/dashboard/project/ufsmpqxniswdnsywjzje
 - URL: https://ufsmpqxniswdnsywjzje.supabase.co
 - Anon key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmc21wcXhuaXN3ZG5zeXdqemplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4NTE1MjYsImV4cCI6MjEwMTQyNzUyNn0.UpLvRqxNjORTk3buRFH2_J34IOp44rmc55_rkENSIFs
 - Service role key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmc21wcXhuaXN3ZG5zeXdqemplIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NTg1MTUyNiwiZXhwIjoyMTAxNDI3NTI2fQ.yqdgbMNuqU3qwuXlgbl5yGcIbgxDCOHnUi0WZ8k8eo8
-- Supabase Management API token: [REDACTED — sbp_ token, returns 401, needs regeneration at supabase.com/dashboard/account/tokens]
-- DB direct access: BLOCKED from codespace (af-south-1 pooler hostname does not resolve)
+- Management API token: [stored in session — sbp_ token, eu-west-1 account]
 
 ### Vercel — CC project
 - Project ID: prj_tbp5UR5zzvTYFHQ6BDUJlKP7OAik
 - Project name: unami-platform-core-umkhandlu
-- Token: [REDACTED — vcp_ Vercel token, stored in codespace session]
 - URL: https://unami-platform-core-umkhandlu.vercel.app
+- Token: [stored in session — vcp_ token]
 
 ### Sanity — Governance Node
 - Project ID: 60v9eb0r
 - Dataset: production
 - API version: 2024-08-22
-- Read token: skvh4gF6oVA5Qk3WJTFZdVIXQVSd7sPsUYAUzW8KC4VGOOJpWdTANHAjC76mYhkGd8ZSPDgpMivr9Mvue0COMlAN2EXJsf5hiOYSdkVMnbI7lYOkFhv48PdY0rXfVH1z65J7VNpjKIvWtcD36qRgx6L0oJLK1iLqf5rd7Tu3LTsROAHSHua7
-- Write token: sk0LRjqWM9T2ODa8vvj8FhXCUb06sIMTjBym8nlq9lPkyl3iJlPIluyFVpowyKAQzxqOKCf1srQ2is0PbcZE0TiWR976gXugJs7UhdY8HUvFwOhImS4EpQNWl33gm9J86J5BoAlGCVBVlJufitTkIUeR2lWGOzxJ51xrWUPrPhLgJZqMKrHS
+- Site URL: https://umkhandlu.unamifoundation.org
+- Studio URL: https://umkhandlu.unamifoundation.org/studio
 
 ### Governance Node
 - Live URL: https://umkhandlu.unamifoundation.org
@@ -70,56 +72,48 @@ GIT_CONFIG_NOSYSTEM=1 git -c credential.helper="" \
 - Name: CC Notice Registration
 - URL: https://umkhandlu.unamifoundation.org/api/sanity-webhook
 - Dataset: production
-- Type: transaction (Sanity API does not support groqFilter via REST — handler filters internally by _type and status)
+- Type: transaction (Sanity REST API does not support groqFilter — handler filters internally)
 - SANITY_WEBHOOK_SECRET: c9f28358c54bf46f2ca81ded82e840faad0680345ebd445e0ed916c0ad36a3eb
 - Status: LIVE
 
-## Governance Node DB Record
-- governance_nodes row: b939f38d-54ee-4a2c-a547-67cb057dc060
-- capabilities currently: health, governance, participation, evidence, commercial, tcrs, institutional-memory
-- MISSING: operators, spatial (RLS blocks service_role PATCH — needs SQL fix in migration 016)
-- Fix SQL (add to migration 016 or run separately):
-  ```sql
-  UPDATE public.governance_nodes
-  SET capabilities = ARRAY['governance','participation','evidence','commercial','tcrs',
-                            'institutional-memory','health','operators','spatial']
-  WHERE id = 'b939f38d-54ee-4a2c-a547-67cb057dc060';
-  ```
+## Migration 016 — APPLIED ✅
+Applied: 2026-11-18 via Supabase Management API SQL endpoint
+Verified:
+- spatial_layer_config: 17 rows seeded
+- notices.site_feature_id column: exists
+- associate_notice_site_feature() function: exists
+- DPME Amajuba District Boundary: permission_classification = redistribute
+- governance_nodes capabilities: governance, participation, evidence, commercial, tcrs, institutional-memory, health, operators, spatial
+- GRANT UPDATE ON governance_nodes TO service_role: applied
 
-## Migration 016 — NOT YET APPLIED
-File: /workspaces/unami-platform-core/apps/umkhandlu/supabase/migrations/016_dpme_permission_and_notice_spatial.sql
+## Live System Checks (2026-11-18)
+- map-layers API: 17 layers, first = Amajuba District Boundary — DPME (DC25) ✅
+- Governance Node health: healthy, 15 records, 7 notices ✅
+- Node capabilities: includes operators + spatial ✅
+- Vercel CC env vars: 11 vars confirmed ✅
+- Sanity webhook: live ✅
 
-Apply via: Supabase Dashboard > SQL Editor > paste full file content
-URL: https://supabase.com/dashboard/project/ufsmpqxniswdnsywjzje/sql/new
+## Phase Summary — ALL COMPLETE
+| Phase | Description | Commit | Status |
+|-------|-------------|--------|--------|
+| 1 | Migration 016 (DPME fix, site_feature_id, spatial_layer_config) | b6d4a3b | APPLIED ✅ |
+| 2 | NoticeSiteFeatureAssociation component + actions | b6d4a3b | LIVE ✅ |
+| 3 | /spatial/layers page + LayerConfigEditor | b6d4a3b | LIVE ✅ |
+| 4 | /spatial/gratisgis status page | b6d4a3b | LIVE ✅ |
+| 5 | map-layers API reads spatial_layer_config | b6d4a3b | LIVE ✅ |
+| 6 | NoticeStatutoryMap 35/65 inspector/map layout | 2dfa199 | LIVE ✅ |
+| 7 | DevelopmentNoticePage SpatialBlock breakout | 2dfa199 | LIVE ✅ |
+| 8 | /api/sanity-webhook endpoint | 2dfa199 | LIVE ✅ |
+| 9 | Collapsible desktop inspector panel | 1dbccde | LIVE ✅ |
 
-Blockers to applying programmatically:
-- Supabase Management API token (sbp_) returns 401 — needs regeneration at supabase.com/dashboard/account/tokens
-- DB direct connection blocked (af-south-1 pooler hostname does not resolve from codespace)
-- No exec_sql RPC function exists in the project
+## Architecture Notes
+- CC reads node URL + API key from governance_nodes table (not env vars)
+- UMKHANDLU_NODE_URL / UMKHANDLU_NODE_API_KEY env vars are legacy — DB is canonical
+- spatial_layer_config: one row per dataset, seeded from published datasets, operators edit via /spatial/layers
+- map-layers API joins spatial_layer_config on every request; falls back to hash colour if no config
+- Sanity webhook fires on all mutations; /api/sanity-webhook handler checks _type == developmentNotice && status == open
+- GRATISGIS_OGC_API_URL empty = system serves geometry from Supabase JSONB (valid interim)
+- Biome max complexity: 15 — InspectorHeader extracted to keep DesktopInspector compliant
 
-## Phase Summary
-| Phase | Description | Status |
-|-------|-------------|--------|
-| 1 | Migration 016 (DPME fix, site_feature_id, spatial_layer_config) | Written, NOT applied |
-| 2 | NoticeSiteFeatureAssociation component + actions | Committed, pushed |
-| 3 | /spatial/layers page + LayerConfigEditor | Committed, pushed |
-| 4 | /spatial/gratisgis status page | Committed, pushed |
-| 5 | map-layers API reads spatial_layer_config | Committed, pushed |
-| 6 | NoticeStatutoryMap 35/65 inspector/map layout | Committed, pushed |
-| 7 | DevelopmentNoticePage SpatialBlock breakout | Committed, pushed |
-| 8 | /api/sanity-webhook endpoint | Committed, pushed |
-| 9 | Collapsible desktop inspector panel | Committed, pushed (1dbccde) |
-
-## Remaining Manual Steps
-1. Apply migration 016 — paste into Supabase SQL editor for ufsmpqxniswdnsywjzje
-   Also run the governance_nodes capabilities UPDATE above
-2. Regenerate Supabase Management API token at supabase.com/dashboard/account/tokens
-   (current sbp_ token returns 401)
-3. Trigger Vercel redeploy of CC after migration is applied (or it auto-deploys on next push)
-
-## Build Status
-- CC (unami-platform-core/apps/umkhandlu): tsc clean, next build successful
-- Governance Node (Umkhandlu): tsc clean, biome passes, collapsible inspector committed
-- Governance Node live health: https://umkhandlu.unamifoundation.org/api/intelligence/health returns {"status":"healthy","recordCount":15,"noticeCount":7}
-- CC Vercel project: all 11 env vars confirmed set
-- Sanity webhook: live (id m5k8f8ULRcuL651E)
+## Nothing Outstanding
+All phases implemented, committed, pushed, deployed, and verified live.
